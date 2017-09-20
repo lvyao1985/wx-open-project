@@ -483,7 +483,10 @@ class WXAuthorizer(BaseModel):
             'authorizer_refresh_token': self.refresh_token
         }
         resp_json = requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json()
-        access_token, expires_in, refresh_token = map(resp_json.get, ('authorizer_access_token', 'expires_in', 'refresh_token'))
+        access_token, expires_in, refresh_token = map(
+            resp_json.get,
+            ('authorizer_access_token', 'expires_in', 'authorizer_refresh_token')
+        )
         if not all((access_token, expires_in, refresh_token)):
             return
 

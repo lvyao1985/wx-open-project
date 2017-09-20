@@ -4,6 +4,7 @@ import urllib
 import time
 
 from flask import current_app, request, url_for, redirect, make_response, jsonify
+import requests
 
 from . import bp_open_main
 from ...models import WXAuthorizer, WXUser
@@ -61,6 +62,15 @@ def wx_component_api():
                 wx_authorizer = WXAuthorizer.query_by_appid(message['AuthorizerAppid'])
                 assert wx_authorizer, u'微信授权方查询失败'
                 wx_authorizer.unauthorized()
+
+            # 全网发布专用测试公众号
+            elif message['InfoType'] == 'authorized' and message['AuthorizerAppid'] == 'wx570bc396a51b8ff8':
+                url = url_for('.wx_authorizer_login', _external=True)
+                params = {
+                    'auth_code': message['AuthorizationCode'],
+                    'expires_in': 3600
+                }
+                requests.get(url, params=params)
         except Exception, e:
             current_app.logger.error(e)
         finally:
@@ -76,48 +86,47 @@ def wx_authorizer_authorize():
     wx = current_app.config['WEIXIN']
     pre_auth_code = get_pre_auth_code(wx)
     if not pre_auth_code:
+        current_app.logger.error(u'微信公众号/小程序授权：pre_auth_code获取失败')
         return redirect(wx['auth_error_page'])
 
-    redirect_uri = urllib.quote_plus(url_for('.wx_authorizer_callback', _external=True))
+    redirect_uri = urllib.quote_plus(url_for('.wx_authorizer_login', _external=True))
     wx_url = 'https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=%s&pre_auth_code=%s&redirect_uri=%s' \
              % (wx['app_id'], pre_auth_code, redirect_uri)
     return redirect(wx_url)
 
 
-@bp_open_main.route('/extensions/wx/authorizer/callback/', methods=['GET'])
-def wx_authorizer_callback():
+@bp_open_main.route('/extensions/wx/authorizer/login/', methods=['GET'])
+def wx_authorizer_login():
     """
-    （由微信跳转）微信公众号/小程序授权：获取微信公众号/小程序的授权信息和基本信息并跳转
+    （由微信跳转）微信公众号/小程序授权：获取微信公众号/小程序的授权信息和基本信息
     :return:
     """
     auth_code, expires_in = map(request.args.get, ('auth_code', 'expires_in'))
     wx = current_app.config['WEIXIN']
-    if not (auth_code and expires_in):
-        return redirect(wx['auth_error_page'])
-
-    authorization_info = get_authorization_info(wx, auth_code)
-    if not authorization_info:
-        return redirect(wx['auth_error_page'])
-
-    appid, refresh_token, func_info, access_token, expires_in = map(
-        authorization_info.get,
-        ('authorizer_appid', 'authorizer_refresh_token', 'func_info', 'authorizer_access_token', 'expires_in')
-    )
-    if not all((appid, refresh_token, func_info, access_token, expires_in)):
-        return redirect(wx['auth_error_page'])
-
-    wx_authorizer = WXAuthorizer.query_by_appid(appid)
-    if wx_authorizer:
-        wx_authorizer.update_refresh_token(refresh_token)
-        wx_authorizer.update_func_info(func_info)
-    else:
-        wx_authorizer = WXAuthorizer.create_wx_authorizer(appid, refresh_token, func_info)
-    if not wx_authorizer.update_authorizer_info():
-        return redirect(wx['auth_error_page'])
-
-    key = 'wx_authorizer:%s:access_token' % appid
-    redis_client.set(key, access_token, ex=int(expires_in) - 600)  # 提前10分钟更新access_token
-    return redirect(wx['auth_success_page'])
+    resp = redirect(wx['auth_error_page'])
+    try:
+        assert auth_code and expires_in, u'微信公众号/小程序授权：auth_code获取失败'
+        authorization_info = get_authorization_info(wx, auth_code)
+        assert authorization_info, u'微信公众号/小程序授权：授权信息获取失败'
+        appid, refresh_token, func_info, access_token, expires_in = map(
+            authorization_info.get,
+            ('authorizer_appid', 'authorizer_refresh_token', 'func_info', 'authorizer_access_token', 'expires_in')
+        )
+        assert all((appid, refresh_token, func_info, access_token, expires_in)), u'微信公众号/小程序授权：授权信息不完整'
+        wx_authorizer = WXAuthorizer.query_by_appid(appid)
+        if wx_authorizer:
+            wx_authorizer.update_refresh_token(refresh_token)
+            wx_authorizer.update_func_info(func_info)
+        else:
+            wx_authorizer = WXAuthorizer.create_wx_authorizer(appid, refresh_token, func_info)
+        assert wx_authorizer.update_authorizer_info(), u'微信公众号/小程序授权：基本信息获取失败'
+        key = 'wx_authorizer:%s:access_token' % appid
+        redis_client.set(key, access_token, ex=int(expires_in) - 600)  # 提前10分钟更新access_token
+        resp = redirect(wx['auth_success_page'])
+    except Exception, e:
+        current_app.logger.error(e)
+    finally:
+        return resp
 
 
 @bp_open_main.route('/extensions/wx/authorizer/<appid>/api/', methods=['GET', 'POST'])
