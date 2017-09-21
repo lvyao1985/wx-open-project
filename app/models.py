@@ -434,7 +434,7 @@ class WXAuthorizer(BaseModel):
              alias, business_info, mini_program_info) = map(
                 authorizer_info.get,
                 ('service_type_info', 'verify_type_info', 'nick_name', 'signature', 'head_img', 'qrcode_url',
-                 'principal_name', 'user_name', 'alias', 'business_info', 'miniprograminfo')
+                 'principal_name', 'user_name', 'alias', 'business_info', 'MiniProgramInfo')
             )
             self.authorized = True
             self.func_info = repr(authorization_info.get('func_info'))

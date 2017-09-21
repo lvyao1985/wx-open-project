@@ -9,6 +9,7 @@ import requests
 from . import bp_open_main
 from ...models import WXAuthorizer, WXUser
 from ...services.weixin import WXMsgCrypto
+from ...constants import AUTHORIZERS_FOR_RELEASE_TESTING
 from utils.qiniu_util import get_upload_token
 from utils.redis_util import redis_client
 from utils.weixin_util import get_pre_auth_code, get_authorization_info
@@ -63,8 +64,8 @@ def wx_component_api():
                 assert wx_authorizer, u'微信授权方查询失败'
                 wx_authorizer.unauthorized()
 
-            # 全网发布专用测试公众号
-            elif message['InfoType'] == 'authorized' and message['AuthorizerAppid'] == 'wx570bc396a51b8ff8':
+            # 全网发布专用测试公众号/小程序
+            elif message['InfoType'] == 'authorized' and message['AuthorizerAppid'] in AUTHORIZERS_FOR_RELEASE_TESTING:
                 url = url_for('.wx_authorizer_login', _external=True)
                 params = {
                     'auth_code': message['AuthorizationCode'],
@@ -132,7 +133,7 @@ def wx_authorizer_login():
 @bp_open_main.route('/extensions/wx/authorizer/<appid>/api/', methods=['GET', 'POST'])
 def wx_authorizer_api(appid):
     """
-    （由微信访问）微信授权方公众号消息与事件接收URL
+    （由微信访问）微信公众号/小程序消息与事件接收URL
     :param appid:
     :return:
     """
@@ -141,15 +142,15 @@ def wx_authorizer_api(appid):
         ('encrypt_type', 'msg_signature', 'timestamp', 'nonce')
     )
     if not all((encrypt_type, msg_signature, timestamp, nonce)):
-        current_app.logger.error(u'微信公众号消息与事件接收URL参数不完整')
+        current_app.logger.error(u'微信公众号/小程序消息与事件接收URL参数不完整')
         return make_response('success')
 
     if not encrypt_type == 'aes':
-        current_app.logger.error(u'微信公众号消息与事件接收URL加密类型错误：%s' % encrypt_type)
+        current_app.logger.error(u'微信公众号/小程序消息与事件接收URL加密类型错误：%s' % encrypt_type)
         return make_response('success')
 
     if request.method == 'GET':
-        current_app.logger.info(u'微信公众号消息与事件接收URL验证成功')
+        current_app.logger.info(u'微信公众号/小程序消息与事件接收URL验证成功')
         return make_response(request.args.get('echostr', ''))
 
     if request.method == 'POST':
@@ -163,8 +164,8 @@ def wx_authorizer_api(appid):
             current_app.logger.info(message)
             msg_type = message['MsgType']
 
-            # 全网发布专用测试公众号
-            if appid == 'wx570bc396a51b8ff8':
+            # 全网发布专用测试公众号/小程序
+            if appid in AUTHORIZERS_FOR_RELEASE_TESTING:
                 if msg_type == 'event':
                     template = 'weixin/reply_text_msg.xml'
                     params = {
@@ -189,11 +190,7 @@ def wx_authorizer_api(appid):
                         resp = crypto.encrypt(msg.encode('utf-8'))
                     elif msg_content.startswith('QUERY_AUTH_CODE:'):
                         from ...tasks import for_release_testing
-                        for_release_testing.apply_async(
-                            (wx_authorizer, message['FromUserName'], msg_content.split(':', 1)[-1]),
-                            countdown=1
-                        )  # celery task
-                        resp = ''
+                        for_release_testing.delay(wx_authorizer, message['FromUserName'], msg_content.split(':', 1)[-1])  # celery task
                 return
 
             # 模板消息及群发消息结果的事件推送
@@ -217,7 +214,7 @@ def wx_authorizer_api(appid):
                 else:
                     current_app.logger.error(u'微信用户基本信息获取失败')
 
-            # TODO: 微信授权方公众号API业务逻辑
+            # TODO: 微信公众号/小程序API业务逻辑
         except Exception, e:
             current_app.logger.error(e)
         finally:
