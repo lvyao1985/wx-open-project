@@ -209,7 +209,7 @@ def wx_authorizer_api(appid):
                 if info:
                     if wx_user:
                         wx_user.update_wx_user(**info)
-                    else:
+                    elif not (msg_type == 'event' and message['Event'] == 'unsubscribe'):
                         wx_user = WXUser.create_wx_user(wx_authorizer, **info)
                 else:
                     current_app.logger.error(u'微信用户基本信息获取失败')
