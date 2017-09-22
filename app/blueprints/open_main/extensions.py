@@ -141,20 +141,20 @@ def wx_authorizer_api(appid):
         request.args.get,
         ('encrypt_type', 'msg_signature', 'timestamp', 'nonce')
     )
+    resp = 'success'
     if not all((encrypt_type, msg_signature, timestamp, nonce)):
         current_app.logger.error(u'微信公众号/小程序消息与事件接收URL参数不完整')
-        return make_response('success')
+        return make_response(resp)
 
     if not encrypt_type == 'aes':
         current_app.logger.error(u'微信公众号/小程序消息与事件接收URL加密类型错误：%s' % encrypt_type)
-        return make_response('success')
+        return make_response(resp)
 
     if request.method == 'GET':
         current_app.logger.info(u'微信公众号/小程序消息与事件接收URL验证成功')
         return make_response(request.args.get('echostr', ''))
 
     if request.method == 'POST':
-        resp = 'success'
         try:
             wx_authorizer = WXAuthorizer.query_by_appid(appid)
             assert wx_authorizer, u'微信授权方查询失败'
@@ -162,46 +162,49 @@ def wx_authorizer_api(appid):
             crypto = WXMsgCrypto(wx)
             message = crypto.decrypt(request.data, msg_signature, timestamp, nonce)
             current_app.logger.info(message)
-            msg_type = message['MsgType']
+            openid, msg_type, event = map(message.get, ('FromUserName', 'MsgType', 'Event'))
 
             # 全网发布专用测试公众号/小程序
             if appid in AUTHORIZERS_FOR_RELEASE_TESTING:
                 if msg_type == 'event':
                     template = 'weixin/reply_text_msg.xml'
                     params = {
-                        'to_user': message['FromUserName'],
+                        'to_user': openid,
                         'from_user': message['ToUserName'],
                         'time': int(time.time()),
-                        'content': message['Event'] + 'from_callback'
+                        'content': event + 'from_callback'
                     }
                     msg = current_app.jinja_env.get_template(template).render(**params)
                     resp = crypto.encrypt(msg.encode('utf-8'))
                 elif msg_type == 'text':
-                    msg_content = message['Content']
-                    if msg_content == 'TESTCOMPONENT_MSG_TYPE_TEXT':
+                    content = message['Content']
+                    if content == 'TESTCOMPONENT_MSG_TYPE_TEXT':
                         template = 'weixin/reply_text_msg.xml'
                         params = {
-                            'to_user': message['FromUserName'],
+                            'to_user': openid,
                             'from_user': message['ToUserName'],
                             'time': int(time.time()),
                             'content': 'TESTCOMPONENT_MSG_TYPE_TEXT_callback'
                         }
                         msg = current_app.jinja_env.get_template(template).render(**params)
                         resp = crypto.encrypt(msg.encode('utf-8'))
-                    elif msg_content.startswith('QUERY_AUTH_CODE:'):
+                    elif content.startswith('QUERY_AUTH_CODE:'):
                         from ...tasks import for_release_testing
-                        for_release_testing.delay(wx_authorizer, message['FromUserName'], msg_content.split(':', 1)[-1])  # celery task
+                        for_release_testing.delay(wx_authorizer, openid, content.split(':', 1)[-1])  # celery task
                 return
 
             # 模板消息及群发消息结果的事件推送
-            if msg_type == 'event' and message['Event'] in ['TEMPLATESENDJOBFINISH', 'MASSSENDJOBFINISH']:
+            if msg_type == 'event' and event in ['TEMPLATESENDJOBFINISH', 'MASSSENDJOBFINISH']:
+                return
+
+            # 用户取消关注的事件推送
+            wx_user = WXUser.query_by_openid(wx_authorizer, openid)
+            if not wx_user and msg_type == 'event' and event == 'unsubscribe':
                 return
 
             # 获取微信用户基本信息
-            openid = message['FromUserName']
-            wx_user = WXUser.query_by_openid(wx_authorizer, openid)
             key = 'wx_user:%s:%s:info' % (wx_authorizer.id, openid)
-            if not wx_user or (msg_type == 'event' and message['Event'] in ['subscribe', 'unsubscribe']):
+            if not wx_user or (msg_type == 'event' and event in ['subscribe', 'unsubscribe']):
                 redis_client.delete(key)
             if redis_client.get(key) != 'off':
                 redis_client.set(key, 'off', ex=86400)  # 每隔一天更新微信用户基本信息
@@ -209,7 +212,7 @@ def wx_authorizer_api(appid):
                 if info:
                     if wx_user:
                         wx_user.update_wx_user(**info)
-                    elif not (msg_type == 'event' and message['Event'] == 'unsubscribe'):
+                    else:
                         wx_user = WXUser.create_wx_user(wx_authorizer, **info)
                 else:
                     current_app.logger.error(u'微信用户基本信息获取失败')
