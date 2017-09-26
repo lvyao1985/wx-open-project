@@ -10,8 +10,8 @@ from playhouse.shortcuts import model_to_dict
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 
-from . import db
-from .constants import DEFAULT_PER_PAGE
+from .. import db
+from ..constants import DEFAULT_PER_PAGE
 from utils.redis_util import redis_client
 from utils.weixin_util import VERIFY, get_component_access_token
 
