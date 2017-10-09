@@ -32,16 +32,12 @@ def create_app(config_name):
     from .blueprints.cms_api import bp_cms_api
     from .blueprints.open_main import bp_open_main
     from .blueprints.open_api import bp_open_api
-    from .blueprints.h5_main import bp_h5_main
-    from .blueprints.h5_api import bp_h5_api
     from .blueprints.sample_h5_main import bp_sample_h5_main
     from .blueprints.sample_h5_api import bp_sample_h5_api
     app.register_blueprint(bp_cms_main, subdomain=app.config['SUBDOMAIN'].get('cms_main'))
     app.register_blueprint(bp_cms_api, subdomain=app.config['SUBDOMAIN'].get('cms_api'), url_prefix='/api')
     app.register_blueprint(bp_open_main, subdomain=app.config['SUBDOMAIN'].get('open_main'))
     app.register_blueprint(bp_open_api, subdomain=app.config['SUBDOMAIN'].get('open_api'), url_prefix='/api')
-    app.register_blueprint(bp_h5_main, subdomain=app.config['SUBDOMAIN'].get('h5_main'))
-    app.register_blueprint(bp_h5_api, subdomain=app.config['SUBDOMAIN'].get('h5_api'), url_prefix='/api')
     app.register_blueprint(bp_sample_h5_main, subdomain=app.config['SUBDOMAIN'].get('sample_h5_main'))
     app.register_blueprint(bp_sample_h5_api, subdomain=app.config['SUBDOMAIN'].get('sample_h5_api'), url_prefix='/api')
 

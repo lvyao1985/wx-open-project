@@ -19,4 +19,4 @@ bp_sample_h5_api.before_request(before_api_request)
 bp_sample_h5_api.before_request(wx_user_authentication)
 
 
-from . import v_user
+from . import v_weixin, v_user

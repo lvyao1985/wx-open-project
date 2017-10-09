@@ -2,12 +2,25 @@
 
 import urllib
 
-from flask import current_app, request, url_for, redirect, make_response, abort
+from flask import current_app, request, url_for, redirect, make_response, jsonify, abort
 
 from . import bp_sample_h5_main
 from ...models import WXAuthorizer, WXUser
 from ...constants import WX_USER_COOKIE_KEY, WX_USER_LOGIN_VALID_DAYS
 from utils.aes_util import encrypt
+from utils.qiniu_util import get_upload_token
+
+
+@bp_sample_h5_main.route('/extensions/qn/upload_token/', methods=['GET'])
+def get_qn_upload_token():
+    """
+    获取七牛上传凭证
+    :return:
+    """
+    data = {
+        'uptoken': get_upload_token(current_app.config['QINIU'])
+    }
+    return jsonify(data)
 
 
 @bp_sample_h5_main.route('/extensions/wx/user/authorize/', methods=['GET'])

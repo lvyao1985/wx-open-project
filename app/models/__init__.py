@@ -521,6 +521,33 @@ class WXAuthorizer(BaseModel):
         redis_client.set(key, jsapi_ticket, ex=int(expires_in) - 600)  # 提前10分钟更新jsapi_ticket
         return jsapi_ticket
 
+    def get_card_api_ticket(self):
+        """
+        获取微信卡券api_ticket
+        :return:
+        """
+        key = 'wx_authorizer:%s:card_api_ticket' % self.appid
+        card_api_ticket = redis_client.get(key)
+        if card_api_ticket:
+            return card_api_ticket
+
+        access_token = self.get_access_token()
+        if not access_token:
+            return
+
+        wx_url = 'https://api.weixin.qq.com/cgi-bin/ticket/getticket'
+        params = {
+            'access_token': access_token,
+            'type': 'wx_card'
+        }
+        resp_json = requests.get(wx_url, params=params, verify=VERIFY).json()
+        card_api_ticket, expires_in = map(resp_json.get, ('ticket', 'expires_in'))
+        if not (card_api_ticket and expires_in):
+            return
+
+        redis_client.set(key, card_api_ticket, ex=int(expires_in) - 600)  # 提前10分钟更新card_api_ticket
+        return card_api_ticket
+
     def get_user_info(self, openid):
         """
         获取微信用户基本信息

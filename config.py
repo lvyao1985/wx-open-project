@@ -90,8 +90,6 @@ class DevelopmentConfig(Config):
         'cms_api': 'cms',
         'open_main': 'open',
         'open_api': 'open',
-        'h5_main': 'h5',
-        'h5_api': 'h5',
         'sample_h5_main': 'sample.h5',
         'sample_h5_api': 'sample.h5'
     }
@@ -107,8 +105,6 @@ class ProductionConfig(Config):
         'cms_api': 'cms',
         'open_main': 'open',
         'open_api': 'open',
-        'h5_main': 'h5',
-        'h5_api': 'h5',
         'sample_h5_main': '%s.h5' % Config.SAMPLE_APPID,
         'sample_h5_api': '%s.h5' % Config.SAMPLE_APPID
     }

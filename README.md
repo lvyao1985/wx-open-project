@@ -79,7 +79,6 @@
 
     所有请求：1000
     POST/PUT方法：1100
-    login_required访问限制：1101
     使用分页参数page/per_page：1202
 
 **通用的可选URL参数**
@@ -141,63 +140,6 @@
 **微信公众号/小程序授权**
 
     GET  /extensions/wx/authorizer/authorize/
-
-## H5_API References
-
-**获取微信授权方公众号JS-SDK权限验证配置**
-
-    GET  /api/wx/authorizer/<appid>/js_sdk_config/
-
-    必填URL参数：
-        url: 使用JS-SDK的页面URL，不包含#及其后面部分
-
-    响应数据：
-        appid [string]:
-        noncestr [string]:
-        signature [string]:
-        timestamp [int]:
-
-    错误码：
-        1104, 1201, 1810
-
-## H5_Extensions
-
-**获取七牛上传凭证**
-
-    GET  /extensions/qn/upload_token/
-
-## SAMPLE_H5_API References
-
-**获取当前微信用户详情**
-_(login_required)_
-
-    GET  /api/current_user/
-
-    响应数据：
-        wx_user [object]:
-
-## SAMPLE_H5_Extensions
-
-**微信公众号网页授权**
-
-    GET  /extensions/wx/user/authorize/
-
-    可选URL参数：
-        state: 授权后跳转到的页面路径，默认为根目录
-
-**微信用户登录（测试）**
-
-    GET  /extensions/testing/wx/user/<wx_user_uuid>/login/
-
-    可选URL参数：
-        state: 登录后跳转到的页面路径，默认为根目录
-
-**微信用户退出（测试）**
-
-    GET  /extensions/testing/wx/user/logout/
-
-    可选URL参数：
-        state: 退出后跳转到的页面路径，默认为根目录
 
 ## Model Dependencies
 

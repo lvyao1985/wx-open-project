@@ -3,25 +3,24 @@
 import time
 import hashlib
 
-from flask import request
+from flask import current_app, request
 
-from . import bp_h5_api
+from . import bp_sample_h5_api
 from ...models import WXAuthorizer
 from ...api_utils import *
 from utils.key_util import generate_random_key
 
 
-@bp_h5_api.route('/wx/authorizer/<appid>/js_sdk_config/', methods=['GET'])
-def get_wx_authorizer_js_sdk_config(appid):
+@bp_sample_h5_api.route('/wx/js_sdk_config/', methods=['GET'])
+def get_wx_js_sdk_config():
     """
-    获取微信授权方公众号JS-SDK权限验证配置
-    :param appid:
+    获取微信JS-SDK权限验证配置
     :return:
     """
     url = request.args.get('url')
-    wx_authorizer = WXAuthorizer.query_by_appid(appid)
-    claim_args_true(1104, wx_authorizer)
     claim_args(1201, url)
+    appid = current_app.config['INTERVAL_APPID']
+    wx_authorizer = WXAuthorizer.query_by_appid(appid)
     jsapi_ticket = wx_authorizer.get_jsapi_ticket()
     claim_args(1810, jsapi_ticket)
 
