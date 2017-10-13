@@ -173,6 +173,20 @@ class BaseModel(Model):
         except Exception, e:
             current_app.logger.error(e)
 
+    def optionally_save(self):
+        """
+        如果数值有变动，修改更新时间并持久化到数据库
+        :return:
+        """
+        try:
+            if self.modified_fields():
+                self.update_time = datetime.datetime.now()
+                self.save()
+            return self
+
+        except Exception, e:
+            current_app.logger.error(e)
+
     def change_weight(self, weight):
         """
         修改排序权重
@@ -450,10 +464,7 @@ class WXAuthorizer(BaseModel):
             self.alias = _nullable_strip(alias)
             self.business_info = repr(business_info) if business_info else None
             self.mini_program_info = repr(mini_program_info) if mini_program_info else None
-            if self.modified_fields():
-                self.update_time = datetime.datetime.now()
-                self.save()
-            return self
+            return self.optionally_save()
 
         except Exception, e:
             current_app.logger.error(e)
@@ -722,7 +733,7 @@ class WXAuthorizer(BaseModel):
         }
         return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json()
 
-    def generate_qrcode_with_scene(self, action, scene, expires=30):
+    def generate_qrcode_with_scene(self, action, scene, expires=60):
         """
         生成带参数的二维码
         :param action: 'QR_SCENE' - 临时整型参数值，'QR_STR_SCENE' - 临时字符串参数值，
@@ -896,10 +907,7 @@ class WXUser(BaseModel):
                 self.language = _nullable_strip(language)
                 self.remark = _nullable_strip(remark)
                 self.tagid_list = ','.join(map(str, tagid_list)) if tagid_list else None
-            if self.modified_fields():
-                self.update_time = datetime.datetime.now()
-                self.save()
-            return self
+            return self.optionally_save()
 
         except Exception, e:
             current_app.logger.error(e)

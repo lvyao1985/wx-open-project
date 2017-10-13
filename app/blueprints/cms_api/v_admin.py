@@ -7,7 +7,7 @@ from flask import g
 from . import bp_cms_api
 from ...models import Admin
 from ...api_utils import *
-from ...constants import MIN_PASSWORD_LEN, MAX_PASSWORD_LEN, ADMIN_TOKEN_TAG, ADMIN_LOGIN_VALID_DAYS
+from ...constants import MIN_PASSWORD_LEN, ADMIN_TOKEN_TAG, ADMIN_LOGIN_VALID_DAYS
 from utils.aes_util import encrypt
 
 
@@ -55,7 +55,7 @@ def update_current_admin_password():
     claim_args(1401, password_old, password_new)
     claim_args_string(1402, password_old, password_new)
     claim_args_true(1404, g.admin.check_password(password_old))
-    claim_args_true(1405, MIN_PASSWORD_LEN <= len(password_new) <= MAX_PASSWORD_LEN)
+    claim_args_true(1405, len(password_new) >= MIN_PASSWORD_LEN)
 
     g.admin.change_password(password_new)
     data = {

@@ -79,6 +79,7 @@
 
     所有请求：1000
     POST/PUT方法：1100
+    login_required访问限制：1101
     使用分页参数page/per_page：1202
 
 **通用的可选URL参数**
@@ -103,6 +104,7 @@
         1401, 1402, 1403, 1404
 
 **获取当前管理员详情**
+_(login_required)_
 
     GET  /api/current_admin/
 
@@ -110,6 +112,7 @@
         admin [object]:
 
 **修改当前管理员密码**
+_(login_required)_
 
     PUT  /api/current_admin/password/
 
