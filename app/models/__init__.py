@@ -2,6 +2,7 @@
 
 from uuid import uuid1
 import datetime
+import time
 import json
 
 from flask import current_app
@@ -11,7 +12,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 
 from .. import db
-from ..constants import DEFAULT_PER_PAGE
+from ..constants import DEFAULT_PER_PAGE, ADMIN_TOKEN_TAG, ADMIN_TOKEN_VALID_DAYS
+from utils.aes_util import encrypt, decrypt
 from utils.redis_util import redis_client
 from utils.weixin_util import VERIFY, get_component_access_token
 
@@ -173,7 +175,7 @@ class BaseModel(Model):
         except Exception, e:
             current_app.logger.error(e)
 
-    def optionally_save(self):
+    def save_if_modified(self):
         """
         如果数值有变动，修改更新时间并持久化到数据库
         :return:
@@ -263,6 +265,29 @@ class Admin(BaseModel):
 
         except Exception, e:
             current_app.logger.error(e)
+
+    @classmethod
+    def query_by_token(cls, token):
+        """
+        根据身份令牌查询
+        :param token:
+        :return:
+        """
+        try:
+            tag, _id, expires = decrypt(token).split(':')
+            assert tag == ADMIN_TOKEN_TAG, 'token tag: %s' % tag
+            assert int(expires) > time.time(), 'token expired'
+            return cls.query_by_id(_id)
+
+        except Exception, e:
+            current_app.logger.error(e)
+
+    def generate_token(self):
+        """
+        生成身份令牌
+        :return:
+        """
+        return encrypt('%s:%s:%s' % (ADMIN_TOKEN_TAG, self.id, int(time.time()) + 86400 * ADMIN_TOKEN_VALID_DAYS))
 
     def check_password(self, password):
         """
@@ -464,7 +489,7 @@ class WXAuthorizer(BaseModel):
             self.alias = _nullable_strip(alias)
             self.business_info = repr(business_info) if business_info else None
             self.mini_program_info = repr(mini_program_info) if mini_program_info else None
-            return self.optionally_save()
+            return self.save_if_modified()
 
         except Exception, e:
             current_app.logger.error(e)
@@ -907,7 +932,7 @@ class WXUser(BaseModel):
                 self.language = _nullable_strip(language)
                 self.remark = _nullable_strip(remark)
                 self.tagid_list = ','.join(map(str, tagid_list)) if tagid_list else None
-            return self.optionally_save()
+            return self.save_if_modified()
 
         except Exception, e:
             current_app.logger.error(e)

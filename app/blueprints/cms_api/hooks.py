@@ -1,12 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import time
-
-from flask import current_app, request, g, abort
+from flask import request, g, abort
 
 from ...models import Admin
-from ...constants import ADMIN_TOKEN_TAG
-from utils.aes_util import decrypt
 
 
 def admin_authentication():
@@ -18,19 +14,9 @@ def admin_authentication():
         return
 
     token = request.environ.get('HTTP_AUTHORIZATION')
-    if not token:
-        abort(401)
+    if token:
+        g.admin = Admin.query_by_token(token)  # g.admin
+        if g.admin:
+            return
 
-    try:
-        tag, admin_id, expires = decrypt(token).split(':')
-        expires = int(expires)
-    except Exception, e:
-        current_app.logger.error(e)
-        abort(401)
-
-    if tag != ADMIN_TOKEN_TAG or expires < time.time():
-        abort(401)
-
-    g.admin = Admin.query_by_id(admin_id)  # g.admin
-    if not g.admin:
-        abort(401)
+    abort(401)

@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import time
-
 from flask import g
 
 from . import bp_cms_api
 from ...models import Admin
 from ...api_utils import *
-from ...constants import MIN_PASSWORD_LEN, ADMIN_TOKEN_TAG, ADMIN_LOGIN_VALID_DAYS
-from utils.aes_util import encrypt
+from ...constants import MIN_PASSWORD_LEN
 
 
 @bp_cms_api.route('/admin/login/', methods=['PUT'])
@@ -25,9 +22,8 @@ def login():
     claim_args_true(1404, admin.check_password(password))
 
     admin.login(g.ip)
-    token = encrypt('%s:%s:%s' % (ADMIN_TOKEN_TAG, admin.id, int(time.time()) + 86400 * ADMIN_LOGIN_VALID_DAYS))
     data = {
-        'token': token,
+        'token': admin.generate_token(),
         'admin': admin.to_dict(g.fields)
     }
     return api_success_response(data)
