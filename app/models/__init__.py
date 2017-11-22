@@ -4,6 +4,7 @@ from uuid import uuid1
 import datetime
 import time
 import json
+import hashlib
 
 from flask import current_app
 from peewee import *
@@ -14,6 +15,7 @@ import requests
 from .. import db
 from ..constants import DEFAULT_PER_PAGE, ADMIN_TOKEN_TAG, ADMIN_TOKEN_VALID_DAYS
 from utils.aes_util import encrypt, decrypt
+from utils.key_util import generate_random_key
 from utils.redis_util import redis_client
 from utils.weixin_util import VERIFY, get_component_access_token
 
@@ -796,6 +798,239 @@ class WXAuthorizer(BaseModel):
         content_type = resp.headers.get('Content-Type')
         if content_type and content_type.startswith('image/'):
             return url, resp.url, resp.content
+
+    def create_card(self, card_type, base_info, advanced_info=None, gift=None, deal_detail=None, default_detail=None,
+                    discount=None, least_cost=None, reduce_cost=None):
+        """
+        创建微信卡券
+        :param card_type:
+        :param base_info: [dict]
+        :param advanced_info: [dict or None]
+        :param gift:
+        :param deal_detail:
+        :param default_detail:
+        :param discount:
+        :param least_cost:
+        :param reduce_cost:
+        :return:
+        """
+        access_token = self.get_access_token()
+        if not access_token:
+            return
+
+        wx_url = 'https://api.weixin.qq.com/card/create'
+        params = {
+            'access_token': access_token
+        }
+        card_info = {
+            'base_info': base_info
+        }
+        if advanced_info:
+            card_info['advanced_info'] = advanced_info
+        if gift:
+            card_info['gift'] = gift
+        if deal_detail:
+            card_info['deal_detail'] = deal_detail
+        if default_detail:
+            card_info['default_detail'] = default_detail
+        if discount:
+            card_info['discount'] = discount
+        if least_cost:
+            card_info['least_cost'] = least_cost
+        if reduce_cost:
+            card_info['reduce_cost'] = reduce_cost
+        data = {
+            'card': {
+                'card_type': str(card_type).upper(),
+                str(card_type).lower(): card_info
+            }
+        }
+        return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json().get('card_id')
+
+    def get_card(self, card_id):
+        """
+        查询微信卡券详情
+        :param card_id:
+        :return:
+        """
+        access_token = self.get_access_token()
+        if not access_token:
+            return
+
+        wx_url = 'https://api.weixin.qq.com/card/get'
+        params = {
+            'access_token': access_token
+        }
+        data = {
+            'card_id': str(card_id)
+        }
+        return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json().get('card')
+
+    def modify_card_stock(self, card_id, increase_stock_value):
+        """
+        修改微信卡券库存
+        :param card_id:
+        :param increase_stock_value:
+        :return:
+        """
+        access_token = self.get_access_token()
+        if not access_token:
+            return
+
+        wx_url = 'https://api.weixin.qq.com/card/modifystock'
+        params = {
+            'access_token': access_token
+        }
+        data = {
+            'card_id': str(card_id)
+        }
+        if increase_stock_value >= 0:
+            data['increase_stock_value'] = increase_stock_value
+        else:
+            data['reduce_stock_value'] = -increase_stock_value
+        return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json()
+
+    def delete_card(self, card_id):
+        """
+        删除微信卡券
+        :param card_id:
+        :return:
+        """
+        access_token = self.get_access_token()
+        if not access_token:
+            return
+
+        wx_url = 'https://api.weixin.qq.com/card/delete'
+        params = {
+            'access_token': access_token
+        }
+        data = {
+            'card_id': str(card_id)
+        }
+        return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json()
+
+    def decrypt_card_code(self, encrypt_code):
+        """
+        解码微信卡券code
+        :param encrypt_code:
+        :return:
+        """
+        access_token = self.get_access_token()
+        if not access_token:
+            return
+
+        wx_url = 'https://api.weixin.qq.com/card/code/decrypt'
+        params = {
+            'access_token': access_token
+        }
+        data = {
+            'encrypt_code': str(encrypt_code)
+        }
+        return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json().get('code')
+
+    def get_card_code(self, code, card_id=None, check_consume=True):
+        """
+        查询微信卡券code
+        :param code:
+        :param card_id:
+        :param check_consume: [bool]
+        :return:
+        """
+        access_token = self.get_access_token()
+        if not access_token:
+            return
+
+        wx_url = 'https://api.weixin.qq.com/card/code/get'
+        params = {
+            'access_token': access_token
+        }
+        data = {
+            'code': str(code),
+            'check_consume': check_consume
+        }
+        if card_id:
+            data['card_id'] = str(card_id)
+        return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json()
+
+    def consume_card_code(self, code, card_id=None):
+        """
+        核销微信卡券code
+        :param code:
+        :param card_id:
+        :return:
+        """
+        access_token = self.get_access_token()
+        if not access_token:
+            return
+
+        wx_url = 'https://api.weixin.qq.com/card/code/consume'
+        params = {
+            'access_token': access_token
+        }
+        data = {
+            'code': str(code)
+        }
+        if card_id:
+            data['card_id'] = str(card_id)
+        return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json()
+
+    def generate_card_sign(self, data):
+        """
+        生成微信卡券签名
+        :param data: [dict]
+        :return:
+        """
+        card_api_ticket = self.get_card_api_ticket()
+        if not card_api_ticket:
+            return
+
+        items = data.values()
+        items.append(card_api_ticket)
+        items.sort()
+        return hashlib.sha1(''.join(items)).hexdigest()
+
+    def generate_add_card_params(self, card_id, code=None, openid=None):
+        """
+        生成添加微信卡券参数
+        :param card_id:
+        :param code:
+        :param openid:
+        :return:
+        """
+        params = {
+            'cardId': str(card_id),
+            'timestamp': str(int(time.time())),
+            'nonce_str': generate_random_key(16)
+        }
+        if code:
+            params['code'] = str(code)
+        if openid:
+            params['openid'] = str(openid)
+        params['signature'] = self.generate_card_sign(params)
+        return params
+
+    def generate_choose_card_params(self, shop_id=None, card_type=None, card_id=None):
+        """
+        生成拉取适用微信卡券列表参数
+        :param shop_id:
+        :param card_type:
+        :param card_id:
+        :return:
+        """
+        params = {
+            'appId': str(self.appid),
+            'timestamp': str(int(time.time())),
+            'nonceStr': generate_random_key(16)
+        }
+        if shop_id:
+            params['shopId'] = str(shop_id)
+        if card_type:
+            params['cardType'] = str(card_type)
+        if card_id:
+            params['cardId'] = str(card_id)
+        params['cardSign'] = self.generate_card_sign(params)
+        params['signType'] = 'SHA1'
+        return params
 
     def array_func_info(self):
         return [item['funcscope_category']['id'] for item in eval(self.func_info)]
