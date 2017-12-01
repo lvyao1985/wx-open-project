@@ -45,7 +45,7 @@ class Config(object):
 
     # 云片
     YUNPIAN = {
-        'key': environ.get('YUNPIAN_KEY'),
+        'api_key': environ.get('YUNPIAN_API_KEY'),
         'single_send': 'https://sms.yunpian.com/v2/sms/single_send.json',
         'batch_send': 'https://sms.yunpian.com/v2/sms/batch_send.json'
     }

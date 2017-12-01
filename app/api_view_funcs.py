@@ -8,6 +8,7 @@ from .api_utils import *
 __all__ = [
     'list_objects',
     'get_object',
+    'update_object_show',
     'update_object_weight',
     'delete_object',
     'delete_objects'
@@ -50,9 +51,30 @@ def get_object(model, _id=None, _uuid=None, mark='object'):
     return api_success_response(data)
 
 
+def update_object_show(model, _id=None, _uuid=None, mark='object'):
+    """
+    修改对象是否展示
+    :param model:
+    :param _id:
+    :param _uuid:
+    :param mark:
+    :return:
+    """
+    show = g.json.get('show')
+    obj = model.query_by_id(_id) or model.query_by_uuid(_uuid)
+    claim_args(1104, obj)
+    claim_args(1401, show)
+    claim_args_bool(1402, show)
+
+    data = {
+        mark: obj.set_show(show).to_dict(g.fields)
+    }
+    return api_success_response(data)
+
+
 def update_object_weight(model, _id=None, _uuid=None, mark='object'):
     """
-    修改对象权重
+    修改对象排序权重
     :param model:
     :param _id:
     :param _uuid:
@@ -66,7 +88,7 @@ def update_object_weight(model, _id=None, _uuid=None, mark='object'):
     claim_args_int(1402, weight)
 
     data = {
-        mark: obj.change_weight(weight).to_dict(g.fields)
+        mark: obj.set_weight(weight).to_dict(g.fields)
     }
     return api_success_response(data)
 

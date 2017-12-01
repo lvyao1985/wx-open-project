@@ -32,6 +32,7 @@ class BaseModel(Model):
     uuid = UUIDField(unique=True, default=uuid1)  # UUID
     create_time = DateTimeField(default=datetime.datetime.now)  # 创建时间
     update_time = DateTimeField(default=datetime.datetime.now)  # 更新时间
+    show = BooleanField(default=True)  # 是否展示
     weight = IntegerField(default=0)  # 排序权重
 
     class Meta:
@@ -191,9 +192,23 @@ class BaseModel(Model):
         except Exception, e:
             current_app.logger.error(e)
 
-    def change_weight(self, weight):
+    def set_show(self, show):
         """
-        修改排序权重
+        设置是否展示
+        :param show: [bool]
+        :return:
+        """
+        try:
+            self.show = show
+            self.save()
+            return self
+
+        except Exception, e:
+            current_app.logger.error(e)
+
+    def set_weight(self, weight):
+        """
+        设置排序权重
         :param weight:
         :return:
         """
@@ -928,7 +943,7 @@ class WXAuthorizer(BaseModel):
         }
         return requests.post(wx_url, params=params, data=json.dumps(data, ensure_ascii=False), verify=VERIFY).json().get('code')
 
-    def get_card_code(self, code, card_id=None, check_consume=True):
+    def get_card_code(self, code, card_id=None, check_consume=False):
         """
         查询微信卡券code
         :param code:
@@ -1114,20 +1129,24 @@ class WXUser(BaseModel):
         :return:
         """
         try:
+            openid, unionid, nickname, country, province, city, headimgurl, language, remark = map(
+                _nullable_strip,
+                (openid, unionid, nickname, country, province, city, headimgurl, language, remark)
+            )
             return cls.create(
                 wx_authorizer=wx_authorizer,
-                openid=openid.strip(),
-                unionid=_nullable_strip(unionid),
-                nickname=_nullable_strip(nickname),
+                openid=openid,
+                unionid=unionid,
+                nickname=nickname,
                 sex=sex,
-                country=_nullable_strip(country),
-                province=_nullable_strip(province),
-                city=_nullable_strip(city),
-                headimgurl=_nullable_strip(headimgurl),
+                country=country,
+                province=province,
+                city=city,
+                headimgurl=headimgurl,
                 subscribe=subscribe,
                 subscribe_time=subscribe_time,
-                language=_nullable_strip(language),
-                remark=_nullable_strip(remark),
+                language=language,
+                remark=remark,
                 tagid_list=','.join(map(str, tagid_list)) if tagid_list else None
             )
 
@@ -1156,16 +1175,20 @@ class WXUser(BaseModel):
         try:
             self.subscribe = subscribe
             if subscribe:
-                self.unionid = _nullable_strip(unionid)
-                self.nickname = _nullable_strip(nickname)
+                unionid, nickname, country, province, city, headimgurl, language, remark = map(
+                    _nullable_strip,
+                    (unionid, nickname, country, province, city, headimgurl, language, remark)
+                )
+                self.unionid = unionid
+                self.nickname = nickname
                 self.sex = sex
-                self.country = _nullable_strip(country)
-                self.province = _nullable_strip(province)
-                self.city = _nullable_strip(city)
-                self.headimgurl = _nullable_strip(headimgurl)
+                self.country = country
+                self.province = province
+                self.city = city
+                self.headimgurl = headimgurl
                 self.subscribe_time = subscribe_time
-                self.language = _nullable_strip(language)
-                self.remark = _nullable_strip(remark)
+                self.language = language
+                self.remark = remark
                 self.tagid_list = ','.join(map(str, tagid_list)) if tagid_list else None
             return self.save_if_modified()
 
