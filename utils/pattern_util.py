@@ -22,7 +22,7 @@ def check_mobile(mobile):
     :param mobile:
     :return:
     """
-    return bool(re.match(r'1[34578]\d{9}$', mobile))
+    return bool(re.match(r'1[3-9]\d{9}$', mobile))
 
 
 def check_email(email):
