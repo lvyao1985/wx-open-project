@@ -94,14 +94,14 @@ _(login_required)_
     GET  /extensions/testing/wx/user/<uuid:wx_user_uuid>/login/
 
     可选URL参数：
-        state: 登录后跳转到的页面路径，默认为根目录
+        state: 登录后跳转到的页面路径，默认为根目录；须进行URL编码处理
 
 **微信用户退出（测试）**
 
     GET  /extensions/testing/wx/user/logout/
 
     可选URL参数：
-        state: 退出后跳转到的页面路径，默认为根目录
+        state: 退出后跳转到的页面路径，默认为根目录；须进行URL编码处理
 
 ## Model Dependencies
 
