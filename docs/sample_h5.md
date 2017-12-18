@@ -87,11 +87,11 @@ _(login_required)_
     GET  /extensions/wx/user/authorize/
 
     可选URL参数：
-        state: 授权后跳转到的页面路径，默认为根目录
+        state: 授权后跳转到的页面路径，默认为根目录；须进行URL编码处理
 
 **微信用户登录（测试）**
 
-    GET  /extensions/testing/wx/user/<wx_user_uuid>/login/
+    GET  /extensions/testing/wx/user/<uuid:wx_user_uuid>/login/
 
     可选URL参数：
         state: 登录后跳转到的页面路径，默认为根目录
